@@ -1,0 +1,26 @@
+{
+  "name": "burning-bridges",
+  "version": "1.0.0",
+  "description": "secure chat",
+  "main": "main.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/jonapgar/burningbridges.git"
+  },
+  "keywords": [
+    "chat"
+  ],
+  "author": "jonapgar",
+  "license": "SEE LICENSE IN LICENSE",
+  "bugs": {
+    "url": "https://github.com/jonapgar/burningbridges/issues"
+  },
+  "homepage": "https://github.com/jonapgar/burningbridges",
+  "dependencies": {
+    "browserify": "^16.2.3",
+    "webtorrent": "^0.103.0"
+  }
+}

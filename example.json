@@ -1,0 +1,16 @@
+{
+    "profile":
+    {
+        "name": "jon",
+        "keys":
+        {}
+    },
+    "contacts":
+    {
+        "tim":
+        {
+            "keys":
+            {}
+        }
+    }
+}
