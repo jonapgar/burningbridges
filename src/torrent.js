@@ -1,10 +1,19 @@
 const WebTorrent = require('webtorrent')
 const client = new WebTorrent()
+const {
+	TORRENT_DEFAULT_OPTIONS={},
+} = require('./conf')
 
-function seed(buffer) {
+module.exports = {seed,download}
+
+function seed(buffer,options={}) {
 	return new Promise((res,rej)=>{
+		options = {
+			...TORRENT_DEFAULT_OPTIONS,
+			...options
+		}
 		try {
-			client.seed([buffer],({magnetURI})=>magnetURI)
+			client.seed([Buffer.from(buffer)],options,({magnetURI})=>res(magnetURI))
 		} catch (e) {
 			rej(e)
 		}
@@ -20,3 +29,4 @@ function download(magnetURI) {
 		}
 	})
 }
+

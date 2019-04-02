@@ -24,7 +24,7 @@ function pad(buffer, length) {
 	return buffer
 }
 
-function trim(buffer, length) {
+function trim(buffer) {
 
 	return buffer
 }

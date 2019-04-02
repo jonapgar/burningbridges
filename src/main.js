@@ -2,7 +2,9 @@ require('./core')
 
 const profile = require('./profile')
 const io = require('./io')
+const save = require('./save')
 
+window.io = io
 
 let input = document.getElementById('input')
 let fileInput = document.getElementById('file')
@@ -15,7 +17,7 @@ input.onchange = async e=>{
 	let space = message.indexOf(' ')
 	let them = message.substring(0,space)
 	message = message.substring(space+1)
-	append(`${name} => @${them}: ${message}`,'message me')
+	append(`${name} => @${them} ${message}`,'message me')
 	io.trigger('message',{text:message,recipient:them})	
 }
 
@@ -29,16 +31,20 @@ input.onclick = e=>{
 
 io.on('received',async ({message,name})=>{
 	let me = (await profile).name
-	append(`${name} => @${me}: ${message}`,'message them')
+	append(`${name} => @${me} ${message}`,'message them')
 })
 
 
 fileInput.onchange = e=>{
 	let reader = new FileReader()
-    reader.onload = function(){
+    reader.onload = async function(){
       //TODO decrypt encrypted json files using password
-      io.trigger('login:data',JSON.parse(reader.result))
+      let data = JSON.parse(reader.result)
+      
+
+      io.trigger('login:data',data)
       loaded=true
+
     }
     reader.readAsText(fileInput.files[0])
 }
@@ -51,4 +57,14 @@ function append(text,className){
 	chat.appendChild(el)
 	container.scrollTop=9999999
 	input.value = ''
+}
+let leaving = false
+
+window.onbeforeunload = e=>{
+	if (window._dirty) {
+		setTimeout(save,500)
+		e.preventDefault()
+		return e.returnValue = 'Save your file before leaving?'
+	}	
+	
 }

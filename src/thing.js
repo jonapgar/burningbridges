@@ -36,7 +36,7 @@ module.exports = a=>((thing,__name__='promise')=>{
 			try {
 				ret = await f(err)
 			} catch (e) {
-				reject(e)
+				return reject(e)
 			}
 			resolve(ret)
 		}) 

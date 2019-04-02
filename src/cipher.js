@@ -1,5 +1,5 @@
 const PRNG = require('./prng.js')
-const {round} = Math
+const {round,floor,random} = Math
 
 const {
 	MAGIC = 2147483647,
@@ -29,11 +29,15 @@ function generate(seed=null){
 
 
 function cipher(buffer) {
+
+	return buffer
+
 	let {map,seed} = generate()
 	let p = 1/16 //at most 1 in 16 bytes is cipher token
 	let jumbled = []
 	let len = buffer.length
 	let last=0
+	let calc=true
 	for (let i=0;i<len;i++) {
 		let byte = buffer[i]
 		let mapped = map[byte]
@@ -44,10 +48,14 @@ function cipher(buffer) {
 		}
 		if (random() < p) {
 			let n = jumbled.push(TOKEN)-1
-			seed-=n-last
+			if (calc) {
+				seed-=n-last
+				if (seed<0)
+					seed = MAGIC-seed
+			}
 			last=n
-			if (seed<0)
-				seed = MAGIC-seed
+			calc=!calc
+			
 			
 		}
 	}
@@ -62,10 +70,14 @@ function cipher(buffer) {
 }
 
 function decipher(buffer) {
+
+	return buffer
+
 	let unjumbled = []
 	let seed = 0 
 	let last=0
 	let len = buffer.length
+	let calc=true
 	for (let i=0;i<len;i++) {
 		let byte = buffer[i]
 		if (byte===ESCAPE) {
@@ -75,10 +87,16 @@ function decipher(buffer) {
 			continue 
 		}
 		if (byte===TOKEN) {
-			seed+=i-last
+			
+			if (calc) {
+				seed+=i-last
+				if (seed > MAGIC)
+					seed-=MAGIC
+			}
+
 			last=i
-			if (seed > MAGIC)
-				seed-=MAGIC
+			calc=!calc
+			
 			continue
 		}
 		if (byte===FINAL) {

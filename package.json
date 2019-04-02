@@ -21,6 +21,13 @@
   "homepage": "https://github.com/jonapgar/burningbridges",
   "dependencies": {
     "browserify": "^16.2.3",
+    "dht-peer-crawler": "^2.0.1",
+    "dhtc": "^1.0.1",
+    "ut_metadata": "^3.3.0",
     "webtorrent": "^0.103.0"
+  },
+  "devDependencies": {
+    "sourcemapify": "^1.1.7",
+    "watchify": "^3.11.1"
   }
 }
