@@ -1,8 +1,11 @@
-require('./core')
+//main.js
+const {send} = require('./core')
 
 const profile = require('./profile')
 const io = require('./io')
 const save = require('./save')
+const contacts = require('./contacts')
+const pair = require('./pair')
 
 window.io = io
 
@@ -16,9 +19,14 @@ input.onchange = async e=>{
 	let message = input.value
 	let space = message.indexOf(' ')
 	let them = message.substring(0,space)
+	let contact = await contacts(them)
+	if (!contact) {
+		await pair(them)
+		contact = await contacts(them)
+	}
 	message = message.substring(space+1)
 	append(`${name} => @${them} ${message}`,'message me')
-	io.trigger('message',{text:message,recipient:them})	
+	send('message',{text:message,recipient:them})	
 }
 
 let loaded=false
