@@ -1,7 +1,27 @@
 //handshake.js
-const profile = require('load')
+// import profile from './load.js'
+import {str2ab,ab2str,concat,buf,b64} from './utils.js'
+import profile from './profile.js'
+import load from './load.js'
+import * as crypto from './crypto.js'
+import * as channels from './channels.js'
 
-const generate = async ()=>{
+import * as Garbage from './garbage.js'
+import * as cipher from './cipher.js'
+import * as advertise from './advertise.js'
+import * as torrent from './torrent.js'
+import thing from './thing.js'
+
+import * as conf from './conf.js'
+const {
+	BLOCK_SIZE = 1024,
+	BLOCK_COUNT = 1024,
+} = conf
+const {subtle} = window.crypto
+
+export {send,receive}
+
+async function generate(){
 
 	let passphraseKey = (await load).passphraseKey
 	let keys = {
@@ -16,26 +36,40 @@ const generate = async ()=>{
     keys.decrypt_iv = b64(keys.decrypt_iv)
     
     
-
+	
     return keys
 }
 
-const send = async (channel,phraseBuffer)=>{
+const $ = thing({ 
+	
+	...cipher,
+	...Garbage,
+	...advertise,
+	...torrent,
+	
+	stringify: JSON.stringify, 
+	parse: JSON.parse, 
+	
+})
+
+async function send(channel,phrase){
 	let keys = await generate()
 	let {verify,encrypt} = keys
-	let handshakeKey = await crypto.getPassphraseKey(phraseBuffer,phraseBuffer)
+	let handshakeKey = await crypto.getPassphraseKey(phrase,phrase)
 	let fullChannel = channels.pad(channel)
+	let {name} = await profile
+	let iv = crypto.random()
     await $(JSON.stringify({
-    	channel:channels.random(),keys:{verify,encrypt}}
+    	name,channel:channels.random(),keys:{verify,encrypt}}
     ))
-    .then(Buffer.from)
+    .then(str2ab)
     .pad(BLOCK_SIZE)
 	.chop(BLOCK_COUNT)
 	.then(blocks =>Promise.all(blocks.map(block => Garbage.pad(block, BLOCK_SIZE))))
 	.unify()
 	.then(buffer=>{
 
-		let iv = crypto.random()
+		
 		return subtle.encrypt({
                 name: "AES-CBC",
                 iv
@@ -46,7 +80,7 @@ const send = async (channel,phraseBuffer)=>{
 	})
 	.cipher()
 	.seed({
-		name:`${fullChannel}.bbh`
+		name:`${fullChannel}.${b64(iv)}.bbh`
 	})
 	.log(torrent => `handshake is seeding as magnetURI ${torrent.magnetURI}`)
 	.advertise(fullChannel)
@@ -54,25 +88,27 @@ const send = async (channel,phraseBuffer)=>{
 	return keys
 }
 
-const receive = (channel,phraseBuffer)=>{
-	
-	let handshakeKey = await crypto.getPassphraseKey(phraseBuffer,phraseBuffer)
+async function receive (channel,phrase){
 	
 	
 	return new Promise((res,rej)=>{
 		
 		let lock = {}
+		let iv
 		channels.listen(channel,async (channel,magnetURI)=>{
 			$(magnetURI)	
 				.download()
-				.then(torrent=>new Promise((res,rej)=>(file = torrent.files[0]).getBuffer((err,buffer)=>err ? rej(err):res(buffer))))
+				.then(torrent=>{
+					iv = buf(torrent.name.split('.')[1])
+					return new Promise((res,rej)=>torrent.files[0].getBuffer((err,buffer)=>err ? rej(err):res(buffer)))
+				})
 				.decipher()
-				.then(buffer=>{
+				.then(async buffer=>{
 					return $(await subtle.decrypt({
 			                name: "AES-CBC",
 			                iv
 			            },
-			            await crypto.handshakeKey(phraseBuffer,phraseBuffer),
+			            await crypto.getPassphraseKey(phrase,phrase),
 			            buffer
 			   		))
 			   	})	
@@ -81,7 +117,7 @@ const receive = (channel,phraseBuffer)=>{
 				.then(blocks => Promise.all(blocks.map(block => Garbage.trim(block))))
 				.unify()
 				.trim()
-				.then(buffer=>Buffer.from(buffer).toString('utf8'))
+				.then(ab2str)
 				.parse()
 				.then(({keys})=>{
 					res(keys)
@@ -92,4 +128,3 @@ const receive = (channel,phraseBuffer)=>{
 
 }
 
-module.exports = {send,receive}

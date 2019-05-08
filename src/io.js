@@ -1,18 +1,20 @@
 //io.js
 const handlers = {}
-module.exports = {
-	out(data){
-		console.log(data)
-	},
-	trigger (event,...args){
-		if (handlers[event])
-			this[event](...args)
-	},
-	on(event,handler){
-		(handlers[event] = handlers[event] || []).push(handler)
-		this[event] = (...args)=>{
-			handlers[event].forEach(handler=>handler(...args))
-		}
+const events = {}
+export {out,trigger,on}
+ 
+function out(data){
+	console.log(data)
+}
+function trigger (event,...args){
+	if (handlers[event])
+		events[event](...args)
+}
+function on(event,handler){
+	(handlers[event] = handlers[event] || []).push(handler)
+	events[event] = (...args)=>{
+		handlers[event].forEach(handler=>handler(...args))
 	}
 }
+
 

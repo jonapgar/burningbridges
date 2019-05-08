@@ -15,7 +15,7 @@ function bind(func, b) {
 	}
 }
 
-module.exports = a=>((thing,__name__='promise')=>{
+export default a=>((thing,__name__='promise')=>{
 	a = {
 		log(thing, func) {
 			console.log(func ? func(thing):thing)

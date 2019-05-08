@@ -1,10 +1,14 @@
-const WebTorrent = require('webtorrent')
-const client = new WebTorrent()
+import {str2ab,ab2str,concat,buf,b64} from './utils.js'
+import * as conf from './conf.js'
+import * as WebTorrentStub from '/node_modules/webtorrent/webtorrent.debug.js' //provides window.WebTorrent
+export {seed,download}
+
+const client = new window.WebTorrent()
 const {
 	TORRENT_DEFAULT_OPTIONS={},
-} = require('./conf')
+} = conf
 
-module.exports = {seed,download}
+
 
 function seed(buffer,options={}) {
 	return new Promise((res,rej)=>{
@@ -13,7 +17,7 @@ function seed(buffer,options={}) {
 			...options
 		}
 		try {
-			client.seed([Buffer.from(buffer)],options,({magnetURI})=>res(magnetURI))
+			client.seed([new Blob([buffer],{type: 'application/json'})],options,({magnetURI})=>res(magnetURI))
 		} catch (e) {
 			rej(e)
 		}

@@ -1,21 +1,25 @@
 //save.js
-const { subtle } = window.crypto
-const crypto = require('./crypto')
-const {buf,b64} = require('./utils')
-module.exports= async (data,passphraseKey)=>{
-	data = data || (await require('./load'))._original
-	passphraseKey = passphraseKey || await crypto.getPassphraseKey(Buffer.from(window.prompt('Enter your passphrase')), buf(data.salt))
+import * as  crypto from './crypto.js'
 
+import {str2ab,ab2str,concat,buf,b64} from './utils.js'
+const { subtle } = window.crypto
+import load from './load.js'
+
+export default async function save(data,passphrase){
+	data = data || (await load)._original
+	let salt = data.salt || b64(crypto.random())
+	let passphraseKey = await crypto.getPassphraseKey(str2ab(passphrase), buf(salt))
+    
 	let iv = crypto.random()
     let encrypted = {
     	iv:b64(iv),
-    	salt:data.salt,
+    	salt,
     	ciphertext:b64(await subtle.encrypt({
                 name: "AES-CBC",
                 iv
             },
             passphraseKey,
-            Buffer.from(JSON.stringify(data))
+            str2ab(JSON.stringify(data))
    		))
     }
     let download = document.createElement('a')
@@ -25,5 +29,5 @@ module.exports= async (data,passphraseKey)=>{
     download.click()
     download.remove()
     window._dirty=false
-    
+    return encrypted
 }

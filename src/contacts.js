@@ -1,10 +1,12 @@
 //load contacts
-const crypto = require('./crypto')
-const {buf} = require('./utils')
-const io = require('./io')
-const channels = require('channels')
-const load = require('./load')
-module.exports = function contacts(name,details){
+import * as crypto from './crypto.js'
+import {buf} from './utils.js'
+// import io from './io'
+import {listen} from './channels.js'
+import load from './load.js'
+import {receive} from './core.js'
+
+export default function contacts(name,details){
 	return load.then(({passphraseKey,contacts})=>{
 		let contact = contacts[name]
 		if (!contact) {
@@ -40,7 +42,7 @@ async function prepare(contact,passphraseKey){
 	let encryptKey = crypto.importTheirPublicEncryptionKey(buf(encrypt))
 	let verifyKey = crypto.importTheirPublicVerificationKey(buf(verify))
 
-	channels.listen(contact.channel,receive,contact)
+	listen(contact.channel,receive,contact)
 	return {
 		keys:{
 			encrypt:await encryptKey,

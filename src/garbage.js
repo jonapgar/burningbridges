@@ -1,4 +1,4 @@
-module.exports = {
+export {
 	chop, unify,
 	pad, trim
 }

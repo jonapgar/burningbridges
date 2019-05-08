@@ -1,38 +1,48 @@
 //core.js
+
+import {str2ab,ab2str,concat,buf,b64} from './utils.js'
+import profile from './profile.js'
+import * as channels from './channels.js'
+import * as io from './io.js'
+import * as contacts from './contacts.js'
+
+import * as Garbage from './garbage.js'
+import {encrypt,decrypt,sign,verify} from './crypto.js'
+import * as cipher from './cipher.js'
+import * as advertise from './advertise.js'
+import * as torrent from './torrent.js'
+import thing from './thing.js'
+
+import * as conf from './conf.js'
 const {
 	BLOCK_SIZE = 1024,
 	BLOCK_COUNT = 1024,
-} = require('./conf')
-const {buf,b64} = require('./utils')
-const profile= require('./profile')
-const io = require('./io')
-const contacts = require('./contacts')
-const channels = require('./channels')
-const Garbage = require('./garbage')
-const {encrypt,decrypt,sign,verify} = require('./crypto')
+} = conf
 
 
 
-const $ = require('./thing')({ 
+export {send,receive}
+
+const $ = thing({ 
 	encrypt,
 	decrypt,
-	...require('./cipher'),
+	...cipher,
 	...Garbage,
-	...require('./advertise'),
-	...require('./torrent'),
+	...advertise,
+	...torrent,
 	
 	stringify: JSON.stringify, 
 	parse: JSON.parse, 
 	
 })
 
-const send = async ({text,recipient,obscurity})=>{
+async function send({text,recipient,obscurity}){
 	let contact = await contacts(recipient)
 	let fullChannel = channels.pad(contact.channel)
 	$(text)
 		.then(async message=>{
 			let {keys,name} = await profile
-			let signature = b64(await sign(Buffer.from(message),keys.sign))
+			let signature = b64(await sign(str2ab(message),keys.sign))
 			return {
 				message,
 				name,
@@ -41,7 +51,7 @@ const send = async ({text,recipient,obscurity})=>{
 			}
 		})
 		.stringify()
-		.then(Buffer.from)
+		.then(str2ab)
 		.pad(BLOCK_SIZE)
 		.chop(BLOCK_COUNT)
 		.log(blocks => `Split message into ${blocks.length} pieces`)
@@ -65,9 +75,9 @@ const send = async ({text,recipient,obscurity})=>{
 
 }
 
-const receive =async (channel,magnetURI)=>{
+async function receive (channel,magnetURI){
 	
-	let channel
+	
 	$(magnetURI)	
 		.download()
 
@@ -101,12 +111,12 @@ const receive =async (channel,magnetURI)=>{
 		.then(blocks => Promise.all(blocks.map(block => Garbage.trim(block))))
 		.unify()
 		.trim()
-		.then(buffer=>Buffer.from(buffer).toString('utf8'))
+		.then(ab2str)
 		.log(s=>`What is this thang? ${s}`)
 		.parse()
 		.then(async ({message,name,signature,channel})=>{
 			let contact = await contacts(name)
-			let verified = await verify(buf(signature),Buffer.from(message),contact.keys.verify)
+			let verified = await verify(buf(signature),str2ab(message),contact.keys.verify)
 			contact.channel = contact._original.channel = channel
 			channels.silence(contact)
 			channels.listen(channel,receive,contact)
@@ -118,5 +128,5 @@ const receive =async (channel,magnetURI)=>{
 		})	
 }
 
-module.exports  = {send,receive}
+
 

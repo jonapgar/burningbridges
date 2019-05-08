@@ -1,3 +1,3 @@
 //profile.js
-const load = require('./load')
-module.exports = load.then(({profile})=>profile)
+import load from './load.js'
+export default load.then(({profile})=>profile)

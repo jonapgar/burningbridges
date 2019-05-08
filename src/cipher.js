@@ -1,16 +1,19 @@
-const PRNG = require('./prng.js')
-const {round,floor,random} = Math
+import {str2ab,ab2str,concat,buf,b64} from './utils.js'
+import * as conf from './conf.js'
+import PRNG from './prng.js'
 
+
+const {round,floor,random} = Math
 const {
 	MAGIC = 2147483647,
 	TOKEN =0,
  	ESCAPE=1,
  	FINAL=2,
-} = require('./conf')
+} = conf
 
 
 
-module.exports = {cipher,decipher}
+export {cipher,decipher}
 
 function generate(seed=null){
 	if (seed===null)
@@ -66,7 +69,7 @@ function cipher(buffer) {
          (seed & 0x0000ff00) >> 8,
          (seed & 0x000000ff)
     )
-	return Buffer.from(Uint8Array.from(jumbled).buffer)
+	return str2ab(Uint8Array.from(jumbled).buffer)
 }
 
 function decipher(buffer) {
@@ -111,5 +114,12 @@ function decipher(buffer) {
 	//flip
 	map.forEach((m,i)=>arr[m]=i)
 
-	return Buffer.from(Uint8Array.from(unjumbled.map(byte=>map[byte])))
+	
+	let buf = new ArrayBuffer(unjumbled.length)
+	let a = new Uint16Array(buf)
+	for (let v in unjumbled){
+		a[v]=map[unjumbled[v]]
+	}
+	
+	return buf
 }

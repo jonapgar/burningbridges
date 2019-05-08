@@ -25,4 +25,4 @@ Random.prototype.nextFloat = function (opt_minOrMax, opt_max) {
   return (this.next() - 1) / 2147483646
 }
 
-module.exports = Random
+export default Random

@@ -1,5 +1,6 @@
 //crypto.js
-module.exports = {
+import {str2ab,ab2str,concat,buf,b64} from './utils.js'
+export {
     getPassphraseKey,
     generateSignVerify,
     generateEncryptDecrypt,
@@ -109,10 +110,11 @@ async function encrypt(buffer, theirPublicEncryptionKey) {
 
     let iv = random(IVLENGTH)
     let encryptedKey = await subtle.encrypt('RSA-OAEP', theirPublicEncryptionKey, await suble.exportKey('raw', key))
-    let b = new Buffer(1)
-    b.writeUint8(encryptedKey.length,0)
-    return Buffer.concat(
-    	b,
+    let b = new ArrayBuffer(1)
+    let a  = new Uint8Array(b)
+    a[0] = encryptedKey.length
+    return concat([
+        b,
         encryptedKey,
         iv,
         await subtle.encrypt({
@@ -121,7 +123,7 @@ async function encrypt(buffer, theirPublicEncryptionKey) {
             },
             key,
             buffer
-        ))
+        )])
 }
 
 async function decrypt(buffer, myPrivateDecryptionKey) {
