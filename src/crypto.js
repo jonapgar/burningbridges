@@ -12,9 +12,22 @@ export {
     importMyPrivateSigningKey,
     importMyPrivateDecryptionKey,
     importTheirPublicVerificationKey,
-    importTheirPublicEncryptionKey
+    importTheirPublicEncryptionKey,
+    test
 }
 
+async  function test(){
+    let pk = await getPassphraseKey(str2ab('foobar'),random())
+    let {sign,sign_iv} = await generateSignVerify(pk)
+    sign = buf(b64(sign))
+    sign_iv = buf(b64(sign_iv))
+    await importMyPrivateSigningKey(sign,pk,sign_iv)
+
+    let {decrypt,decrypt_iv} = await generateEncryptDecrypt(pk)
+    decrypt = buf(b64(decrypt))
+    decrypt_iv = buf(b64(decrypt_iv))
+    await importMyPrivateDecryptionKey(decrypt,pk,decrypt_iv)
+}
 const IVLENGTH = 16
 const { subtle } = window.crypto
 
@@ -109,11 +122,11 @@ async function encrypt(buffer, theirPublicEncryptionKey) {
     )
 
     let iv = random(IVLENGTH)
-    let encryptedKey = await subtle.encrypt('RSA-OAEP', theirPublicEncryptionKey, await suble.exportKey('raw', key))
-    let b = new ArrayBuffer(1)
-    let a  = new Uint8Array(b)
-    a[0] = encryptedKey.length
-    return concat([
+    let encryptedKey = await subtle.encrypt('RSA-OAEP', theirPublicEncryptionKey, await subtle.exportKey('raw', key))
+    let b = new ArrayBuffer(2)
+    let a  = new Uint16Array(b)
+    a[0] = new Uint8Array(encryptedKey).length //num bytes, as a 16 bit int
+    return concat(
         b,
         encryptedKey,
         iv,
@@ -123,13 +136,14 @@ async function encrypt(buffer, theirPublicEncryptionKey) {
             },
             key,
             buffer
-        )])
+        ))
 }
 
 async function decrypt(buffer, myPrivateDecryptionKey) {
-	let keyLen = buffer[0]
-    let keyPart = buffer.slice(1, keyLen)
-
+    let i =  0
+    let lengthPart = buffer.slice(i,i+=2)
+    let keyLen = new Uint16Array(lengthPart.buffer)[0]
+    let keyPart = buffer.slice(i, i+=keyLen)
     let key = await subtle.importKey(
         'raw',
         await subtle.decrypt('RSA-OAEP', myPrivateDecryptionKey, keyPart), {
@@ -138,14 +152,14 @@ async function decrypt(buffer, myPrivateDecryptionKey) {
         false,
         ["encrypt", "decrypt"]
     )
-    let iv = buffer.slice(1 + keyLen, IVLENGTH)
+    let iv = buffer.slice(i, i+=IVLENGTH)
 
     return subtle.decrypt({
             name: "AES-CBC",
             iv,
         },
         key,
-        buffer.slice(1 + KEYLEN + IVLENGTH)
+        buffer.slice(i)
     )
 
 }

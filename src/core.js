@@ -2,15 +2,15 @@
 
 import {str2ab,ab2str,concat,buf,b64} from './utils.js'
 import profile from './profile.js'
-import * as channels from './channels.js'
+import {announce} from './channels.js'
 import * as io from './io.js'
-import * as contacts from './contacts.js'
+import contacts from './contacts.js'
 
 import * as Garbage from './garbage.js'
 import {encrypt,decrypt,sign,verify} from './crypto.js'
 import * as cipher from './cipher.js'
-import * as advertise from './advertise.js'
-import * as torrent from './torrent.js'
+import * as transfer from './transfer.js'
+
 import thing from './thing.js'
 
 import * as conf from './conf.js'
@@ -26,28 +26,28 @@ export {send,receive}
 const $ = thing({ 
 	encrypt,
 	decrypt,
+	announce,
 	...cipher,
 	...Garbage,
-	...advertise,
-	...torrent,
+	...transfer,
 	
 	stringify: JSON.stringify, 
 	parse: JSON.parse, 
 	
 })
 
-async function send({text,recipient,obscurity}){
-	let contact = await contacts(recipient)
-	let fullChannel = channels.pad(contact.channel)
-	$(text)
+async function send({text,contact,obscurity=0,channels}){
+	contact = typeof contact ==='string' ? await contacts(recipient):contact
+	let channel = contact.channels[obscurity]
+	return $(text)
 		.then(async message=>{
-			let {keys,name} = await profile
-			let signature = b64(await sign(str2ab(message),keys.sign))
+			let {name} = await profile()
+			let buffer = str2ab(JSON.stringify({
+				message,name,channels
+			}))
 			return {
-				message,
-				name,
-				signature,
-				channel:channels.random(obscurity)
+				data: b64(buffer),
+				signature: b64(await sign(buffer,contact.keys.sign))
 			}
 		})
 		.stringify()
@@ -63,37 +63,25 @@ async function send({text,recipient,obscurity}){
 		.log(buffer => `Encrypted message`)
 		.cipher()
 		.log(buffer => `Jumbled message`)
-		.seed({
-			name:`${fullChannel}.bbm`
-		})
-		.log(torrent => `Message is seeding as magnetURI ${torrent.magnetURI}`)
-		.advertise(fullChannel)
-		.then(data=>io.trigger('sent',data))
+		.upload()
+		.announce(channel)
 		.catch(e=>{
 			throw e
-		})
+		}).promise
 
 }
 
-async function receive (channel,magnetURI){
+async function receive ({channel,hash},tap){
 	
 	
-	$(magnetURI)	
+	$(hash)	
 		.download()
-
-		
-		.then(torrent=>{
-			return new Promise((res,rej)=>{
-				
-				(file = torrent.files[0])
-					.getBuffer((err,buffer)=>err ? rej(err):res(buffer))
-			})
-		})
 		.decipher()
 		.then(async buffer=>{
 			let cleartext=null
 			let error
 			for (let contact of await contacts.filter(channel)) {
+				contact = await contacts(contact.name)
 				try {
 					cleartext = await decrypt(buffer,contact.keys.decrypt)
 				} catch(e){
@@ -114,18 +102,19 @@ async function receive (channel,magnetURI){
 		.then(ab2str)
 		.log(s=>`What is this thang? ${s}`)
 		.parse()
-		.then(async ({message,name,signature,channel})=>{
-			let contact = await contacts(name)
-			let verified = await verify(buf(signature),str2ab(message),contact.keys.verify)
-			contact.channel = contact._original.channel = channel
-			channels.silence(contact)
-			channels.listen(channel,receive,contact)
-			return {message,name,verified}
+		.then(async ({data,signature})=>{
+			
+			let buffer= buf(data)
+			let parsed = JSON.parse(ab2str(buffer))
+			let contact = await contacts(parsed.name)
+			await verify(buf(signature),buffer,contact.keys.verify)
+			
+			return parsed
 		})
-		.then(data=>io.trigger('received',data))
+		.tap(tap)
 		.catch(e=>{
 			throw e
-		})	
+		})
 }
 
 

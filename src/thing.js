@@ -1,10 +1,12 @@
-function bind(func, b) {
+function bind(func, b,k) {
 	let name = b.__name__
 	return (...args) => {
 		let thing = b[name]
 		b[name] = new Promise(async (resolve,reject) => {
 			try {
+				
 				thing = await thing
+				console.error(k,thing)
 				thing = func(thing, ...args)
 			} catch (e) {
 				return reject(e)
@@ -21,6 +23,10 @@ export default a=>((thing,__name__='promise')=>{
 			console.log(func ? func(thing):thing)
 			return thing
 		},
+		tap(thing, func) {
+			func(thing)
+			return thing
+		},
 		then(thing, func) {
 			return func(thing)
 		},
@@ -28,7 +34,7 @@ export default a=>((thing,__name__='promise')=>{
 	}
 	let b = {[__name__]:Promise.resolve(thing),__name__ }
 	for (let k in a) {
-		b[k] = bind(a[k], b)
+		b[k] = bind(a[k], b,k)
 	}
 	b.catch = f=>b[__name__].catch(err=>{
 		b[__name__] = new Promise(async (resolve,reject)=>{

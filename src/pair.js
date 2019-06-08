@@ -1,47 +1,65 @@
 //pair.js
 import * as conf from './conf.js'
-import * as Garbage from './garbage.js'
 import * as crypto from './crypto.js'
-import thing from './thing.js'
 import contacts from './contacts.js'
+import {announce,silence} from './channels.js'
 import {send,receive} from './handshake.js'
-import * as cipher from './cipher.js'
-import * as advertise from './advertise.js'
-import * as torrent from './torrent.js'
-import {str2ab,ab2str,concat,buf,b64,split} from './utils.js'
+import {getNode as ipfs} from './ipfs.js'
+import {write} from './console.js'
+import {b64,split} from './utils.js'
+import ask from './ask.js';
 
 export default pair
 
 const {
-	MOTION_THRESHOLD=10,
-	MOVES_THRESHOLD=10,
-	MOVE_INTERVAL=10,
-	PHRASE_LENGTH=16,
-	NETWORK_SIZE = 10,
-	HANDSHAKE_OBSCURITY=0
+	PHRASE_LENGTH=16, //technically must be 16 because reused for iv for now
+	NETWORK_SIZE = 16,
+	HANDSHAKE_OBSCURITY=0,
+	HANDSHAKE_ANNOUNCE_TIME = 10000,
+	HANDSHAKE_ANNOUNCE_INTERVAL=2000
 } = conf
-
-
-const avg=arr=>arr.reduce((a,v)=>a+v,0)
-const mag=({x,y,z})=>x+y+z
-
-const $ = thing({ 
-	
-	...cipher,
-	...Garbage,
-	...advertise,
-	...torrent,
-	stringify: JSON.stringify, 
-	parse: JSON.parse, 
-	
-})
+const locks = {}
 async function pair(code){
+	let provided=!!code
 	code = code || await share() //await jerk()
-	console.log(`/pair ${b64(code)}`)
+	let stringCode = b64(code)
+	rmlock(stringCode)
+	
 	let [channel, phrase] = parse(code)
-	let {sign,sign_iv,decrypt,decrypt_iv} = await send(channel,phrase)
-	let {encrypt,verify,channel:nextChannel,name} = await receive(channel,phrase)
-	contacts(name,{channel:nextChannel,name,keys:{sign,sign_iv,decrypt,decrypt_iv,encrypt,verify}})
+	let lock = locks[stringCode] = {}
+	let waitForThem = receive(channel,phrase,lock)
+	let {keys:ourKeys,hash} = await send(channel,phrase)
+	lock.hash = hash
+	if (!provided) {
+		await ask(`You are listening, make sure your partner is too by issueing this command: "pair ${stringCode}", then hit enter to announce the handshake`)
+		write(`announcing hash ${hash} on channel ${channel}`)
+	}
+	let reciprocation
+	announce(hash,channel)
+	waitForThem.then(data=>reciprocation=data)
+	for (let t=0;!reciprocation && t<HANDSHAKE_ANNOUNCE_TIME;t+=HANDSHAKE_ANNOUNCE_INTERVAL) {
+		await (new Promise(res=>setTimeout(res,HANDSHAKE_ANNOUNCE_INTERVAL)))
+		if (!reciprocation)
+			announce(hash,channel)
+	}
+	
+
+	
+	let {keys:theirKeys,channels,name} = reciprocation || await waitForThem
+	
+	let {sign,sign_iv,decrypt,decrypt_iv} = ourKeys
+	contacts(name,{channels,name,keys:{...theirKeys,sign,sign_iv,decrypt,decrypt_iv}})
+	rmlock(stringCode)
+}
+
+async function rmlock(key){
+	if (key in locks) {
+		let lock = locks[key]
+		silence(lock)
+		if ('hash' in lock)
+			await (await ipfs()).pin.rm(lock.hash)
+		delete locks[key]
+	}
 }
 
 function parse(code) {
@@ -51,31 +69,5 @@ function share(){
 	return crypto.random(NETWORK_SIZE + PHRASE_LENGTH)
 }
 
-
-// function jerk(){
-
-// 	return new Promise((res,rej)=>{
-// 		//todo timeout call reject
-// 		window.addEventListener('devicemotion',motion,true)
-// 		let started=false
-// 		const moves=[]
-// 		let t = window.performance.now()
-// 		const motion=async e=>{
-// 			let {x,y,z} = e.accelerationIncludingGravity
-// 			let vector = {x,y,z}
-// 			t=window.performance.now()-t
-// 			moves.push({x,y,z,t})	
-// 			if (!started && moves.length > MOVES_THRESHOLD && avg(moves.slice(-MOVES_THRESHOLD).map(mag))>MOTION_THRESHOLD){
-// 				started=moves.length
-// 			} else if (started && moves.length%MOVE_INTERVAL===0) {
-				
-// 				window.removeEventListener('devicemotion',motion,true)
-
-// 				let code = encode(moves.slice(started-1))
-// 				res(code)
-// 			}
-// 		}
-// 	})
-// }
 
 

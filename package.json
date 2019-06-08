@@ -5,7 +5,7 @@
   "main": "main.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "burn": " cd src && ../node_modules/browserify/bin/cmd.js main.js > bb.js && (http-server & chrome --app=localhost:8080)"
+    "burn": "http-server -o -c-1"
   },
   "repository": {
     "type": "git",
@@ -21,16 +21,9 @@
   },
   "homepage": "https://github.com/jonapgar/burningbridges",
   "dependencies": {
-    "browserify": "^16.2.3",
-    "buffer-es6": "^4.9.3",
-    "dht-peer-crawler": "^2.0.1",
-    "dhtc": "^1.0.1",
-    "lpf": "^1.0.0",
-    "ut_metadata": "^3.3.0",
-    "webtorrent": "^0.103.0"
+    "ipfs": "^0.35.0",
+    "shell-quote": "^1.6.1",
+    "xterm": "^3.13.2"
   },
-  "devDependencies": {
-    "sourcemapify": "^1.1.7",
-    "watchify": "^3.11.1"
-  }
+  "devDependencies": {}
 }

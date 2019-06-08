@@ -7,7 +7,7 @@ function out(data){
 	console.log(data)
 }
 function trigger (event,...args){
-	if (handlers[event])
+	if (handlers[event]	)
 		events[event](...args)
 }
 function on(event,handler){

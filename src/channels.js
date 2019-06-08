@@ -1,25 +1,69 @@
 //channels.js
 import * as conf from './conf.js'
-import {b64,concat} from './utils.js'
+import {random} from './crypto.js'
+import {write} from './console.js'
+import {b64,b58,concat,ab2str} from './utils.js'
+import {getNode as ipfs, Buffer} from './ipfs.js'
+export  {generate,listen,silence,pad,listeners,announce}
+
 const {
-	NETWORK_SIZE = 10
+	NETWORK_SIZE = 16,
+	IPFS_PREFIX = 'burningbridges.',
 } = conf
 
-const listeners = []
+let listeners = []
 
-function random(obscurity=0.5){
-	return b64(window.crypto.getRandomValues(new Uint8Array(1+Math.floor(obscurity*(NETWORK_SIZE-1)))))
+function generate(obscurity=1){
+	return b64(random(Math.max(1,NETWORK_SIZE-obscurity)))
 }
-function listen(channel,handler,lock) {
-	listeners.push({channel,handler,lock})
+
+async function listen(channels,fn,lock) {
+	if (!(channels instanceof Array))
+		channels = [channels]
+	for (let channel of channels) {
+		let subscription =  IPFS_PREFIX + b58(channel)
+		let handler = ({data})=>{
+			//for now utf8
+			let hash =ab2str(data)
+			if (announced.includes(hash)) {
+				console.error('ignore reflection')
+				return
+			}
+			fn({hash,channel})
+		}
+		let node = await ipfs()
+		node.pubsub.subscribe(subscription,handler,{discover:true})
+		listeners.push({subscription,handler,lock})
+	}
 }
-function silence(lock){
-	listeners.splice(listeners.findIndex(listener=>listener.lock==lock),1)
+async function silence(lock){
+	
+	let stay = []
+	let node = await ipfs()
+	for (let listener of listeners) {
+		if (listener.lock===lock) {
+			node.pubsub.unsubscribe(listener.subscription,listener.handler)
+		} else {
+			stay.push(listener)
+		}
+	}
+	listeners = stay
+}
+const announced =[]
+async function announce(hash,channel){
+	let subscription = IPFS_PREFIX + b58(channel)
+	//just pretend utf8 for now...
+	let node = await ipfs()
+	announced.push(hash) //could in theory keep announced list, best to hash them again though for privacy
+	node.pubsub.publish(subscription,Buffer.from(hash))
+	
 }
 function pad(channel) {
 	
-	return b64(concat(channel,window.crypto.getRandomValues(new Uint8Array(NETWORK_SIZE-channel.length))))	
+	return b64(concat(channel,random(NETWORK_SIZE-channel.length)))
 }
 
 
-export  {random,listen,silence,pad,listeners}
+
+
+

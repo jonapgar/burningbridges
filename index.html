@@ -6,22 +6,33 @@
 			color:#aaa;
 			margin:0;
 			padding:0;
-			font-family: helvetica, arial, sans-serif;
-			font-size:small;
+			font-family: monospace;
+			
 		}
-		#chat-container {
-			width:100%;
-			height: calc(100vh - 66px);
+		#terminal {
+			display: flex;
+			height:100vh;
+			flex-direction: column;
+		}
+		#log-container {
+			flex:1 0;
+			display: flex;
 			overflow: scroll;
 		}
-		#chat {
+		#log {
 			width:100%;
+			align-self: flex-end;
+			overflow: hidden;
+            overflow-x: auto;
+            white-space: pre-wrap;
+            word-wrap: break-word;
 		}
 		#input {
+			flex:0 0;
+			flex-basis: 64px;
 			color:white;
 			display: block;
 			width:100%;
-			height: 64px;
 			padding: 8px;	
 			border:none;
 			border-top:2px solid gray;
@@ -33,14 +44,17 @@
 		.message.me {
 			color:green;
 		}
+
 	</style>
 </head>
 <body>
-	<div id="chat-container">
-		<div id="chat"></div>
+	<div id="terminal">
+		<div id="log-container">
+			<pre id="log"></pre>
+		</div>
+		<input id="input"/>
+		<input id="file" type="file" style="visibility:hidden;width:0;height:0;position:absolute;"/>
+		<script type="module" src="./src/main.js"></script>
 	</div>
-	<input id="input"/>
-	<input id="file" type="file" style="visibility:hidden;width:0;height:0;position:absolute;"/>
-	<script type="module" src="./src/main.js"></script>
 </body>
 </html>
