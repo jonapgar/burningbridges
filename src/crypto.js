@@ -1,33 +1,23 @@
 //crypto.js
-import {str2ab,ab2str,concat,buf,b64} from './utils.js'
+import { str2ab, ab2str, concat, buf, b64 } from './utils.js'
 export {
     getPassphraseKey,
     generateSignVerify,
-    generateEncryptDecrypt,
+    generateExchange,
+    getSecretKey,
     encrypt,
     decrypt,
     random,
     sign,
     verify,
     importMyPrivateSigningKey,
-    importMyPrivateDecryptionKey,
     importTheirPublicVerificationKey,
-    importTheirPublicEncryptionKey,
-    test
+    importTheirPublicExchangeKey,
+    importMyPrivateExchangeKey,
+    
 }
 
-async  function test(){
-    let pk = await getPassphraseKey(str2ab('foobar'),random())
-    let {sign,sign_iv} = await generateSignVerify(pk)
-    sign = buf(b64(sign))
-    sign_iv = buf(b64(sign_iv))
-    await importMyPrivateSigningKey(sign,pk,sign_iv)
 
-    let {decrypt,decrypt_iv} = await generateEncryptDecrypt(pk)
-    decrypt = buf(b64(decrypt))
-    decrypt_iv = buf(b64(decrypt_iv))
-    await importMyPrivateDecryptionKey(decrypt,pk,decrypt_iv)
-}
 const IVLENGTH = 16
 const { subtle } = window.crypto
 
@@ -39,11 +29,11 @@ async function getPassphraseKey(passphrase, salt) {
 
     let key = await subtle.importKey('raw', passphrase, { name: 'PBKDF2' }, false, ['deriveKey'])
     return subtle.deriveKey({
-            "name": "PBKDF2",
-            salt,
-            iterations: 1000,
-            hash: { name: "SHA-1" }, //can be "SHA-1", "SHA-256", "SHA-384", or "SHA-512"
-        },
+        "name": "PBKDF2",
+        salt,
+        iterations: 1000,
+        hash: { name: "SHA-1" }, //can be "SHA-1", "SHA-256", "SHA-384", or "SHA-512"
+    },
         key, //your key from generateKey or importKey
         { //the key type you want to create based on the derived bits
             name: "AES-CBC", //can be any AES algorithm ("AES-CTR", "AES-CBC", "AES-CMAC", "AES-GCM", "AES-CFB", "AES-KW", "ECDH", "DH", or "HMAC")
@@ -51,16 +41,16 @@ async function getPassphraseKey(passphrase, salt) {
             length: 256, //can be  128, 192, or 256
         },
         false, //whether the derived key is extractable (i.e. can be used in exportKey)
-        ["encrypt","decrypt","wrapKey", "unwrapKey"] //limited to the options in that algorithm's importKey
+        ["encrypt", "decrypt", "wrapKey", "unwrapKey"] //limited to the options in that algorithm's importKey
     )
 
 }
 
 async function generateSignVerify(passphraseKey) {
     let key = await subtle.generateKey({
-            name: "ECDSA",
-            namedCurve: "P-256", //can be "P-256", "P-384", or "P-521"
-        },
+        name: "ECDSA",
+        namedCurve: "P-256", //can be "P-256", "P-384", or "P-521"
+    },
         true, //whether the key is extractable (i.e. can be used in exportKey)
         ["sign", "verify"] //can be any combination of "sign" and "verify"
     )
@@ -74,25 +64,16 @@ async function generateSignVerify(passphraseKey) {
         sign_iv: iv
     }
 }
-async function generateEncryptDecrypt(passphraseKey) {
-    let key = await subtle.generateKey({
-            name: "RSA-OAEP",
-            modulusLength: 2048, //can be 1024, 2048, or 4096
-            publicExponent: new Uint8Array([0x01, 0x00, 0x01]),
-            hash: { name: "SHA-256" }, //can be "SHA-1", "SHA-256", "SHA-384", or "SHA-512"
+async function generateExchange() {
+    let {publicKey,privateKey} = await subtle.generateKey(
+        {
+            name: "ECDH",
+            namedCurve: "P-256", //can be "P-256", "P-384", or "P-521"
         },
-        true, //whether the key is extractable (i.e. can be used in exportKey)
-        ["encrypt", "decrypt"] //must be ["encrypt", "decrypt"] or ["wrapKey", "unwrapKey"]
+        true,
+        ["deriveKey"]
     )
-    let iv = random()
-    return {
-        decrypt: await subtle.wrapKey('pkcs8', key.privateKey, passphraseKey, { //these are the wrapping key's algorithm options
-            name: "AES-CBC",
-            iv,
-        }),
-        encrypt: await subtle.exportKey('spki', key.publicKey),
-        decrypt_iv: iv
-    }
+    return {publicKey:await subtle.exportKey('spki', publicKey),privateKey}
 }
 
 
@@ -111,85 +92,77 @@ async function verify(buffer, signature, theirPublicVerificationKey) {
     }, theirPublicVerificationKey, signature, buffer)
 }
 
-
-async function encrypt(buffer, theirPublicEncryptionKey) {
-    let key = await subtle.generateKey({
-            name: "AES-CBC",
-            length: 256, //can be  128, 192, or 256
+async function getSecretKey({ publicKey, privateKey }) {
+    return subtle.deriveKey(
+        {
+            name: "ECDH",
+            public:publicKey
         },
-        true, //whether the key is extractable (i.e. can be used in exportKey)
-        ["encrypt", "decrypt"] //can be "encrypt", "decrypt", "wrapKey", or "unwrapKey"
-    )
+        privateKey,
+        {
+            name: "AES-GCM",
+            length: 256
+        },
+        true,
+        ["encrypt", "decrypt"]
+    );
+}
+async function encrypt(buffer, secretKey) {
+
 
     let iv = random(IVLENGTH)
-    let encryptedKey = await subtle.encrypt('RSA-OAEP', theirPublicEncryptionKey, await subtle.exportKey('raw', key))
-    let b = new ArrayBuffer(2)
-    let a  = new Uint16Array(b)
-    a[0] = new Uint8Array(encryptedKey).length //num bytes, as a 16 bit int
-    return concat(
-        b,
-        encryptedKey,
-        iv,
-        await subtle.encrypt({
-                name: "AES-CBC",
-                iv
-            },
-            key,
-            buffer
-        ))
+    return concat(iv, await subtle.encrypt(
+        {
+            name: "AES-GCM",
+            iv
+        },
+        secretKey,
+        buffer
+    ));
 }
 
-async function decrypt(buffer, myPrivateDecryptionKey) {
-    let i =  0
-    let lengthPart = buffer.slice(i,i+=2)
-    let keyLen = new Uint16Array(lengthPart.buffer)[0]
-    let keyPart = buffer.slice(i, i+=keyLen)
-    let key = await subtle.importKey(
-        'raw',
-        await subtle.decrypt('RSA-OAEP', myPrivateDecryptionKey, keyPart), {
-            name: "AES-CBC",
-        },
-        false,
-        ["encrypt", "decrypt"]
-    )
-    let iv = buffer.slice(i, i+=IVLENGTH)
+async function decrypt(buffer, secretKey) {
+    let i = 0
 
-    return subtle.decrypt({
-            name: "AES-CBC",
-            iv,
+    let iv = buffer.slice(i, i += IVLENGTH)
+
+    return subtle.decrypt(
+        {
+            name: "AES-GCM",
+            iv
         },
-        key,
+        secretKey,
         buffer.slice(i)
-    )
+    );
 
 }
 
 
-function importTheirPublicEncryptionKey(theirPublicKeyBuffer) {
+function importTheirPublicExchangeKey(theirPublicKeyBuffer) {
     return subtle.importKey(
         'spki',
-        theirPublicKeyBuffer, { //these are the algorithm options
-            name: "RSA-OAEP",
-            hash: { name: "SHA-256" }, //can be "SHA-1", "SHA-256", "SHA-384", or "SHA-512"
+        theirPublicKeyBuffer,  
+        { 
+            name: "ECDH",
+            namedCurve: "P-256", //can be "P-256", "P-384", or "P-521"
         },
-        false,
-        ["encrypt"]
+        false, 
+        [] 
+   
     )
 }
 
-function importMyPrivateDecryptionKey(myPrivateKeyBuffer, passphraseKey, iv) {
-    return subtle.unwrapKey(
+function importMyPrivateExchangeKey(myPrivateKeyBuffer) {
+    return subtle.importKey(
         'pkcs8',
-        myPrivateKeyBuffer,
-        passphraseKey, { //these are the wrapping key's algorithm options
-            name: "AES-CBC",
-            iv, //The initialization vector you used to encrypt
-        }, { //these are the algorithm options
-            name: "RSA-OAEP",
-            hash: { name: "SHA-256" }, //can be "SHA-1", "SHA-256", "SHA-384", or "SHA-512"
+        myPrivateKeyBuffer,  
+        { 
+            name: "ECDH",
+            namedCurve: "P-256", //can be "P-256", "P-384", or "P-521"
         },
-        false,
-        ["decrypt"]
+        false, 
+        ["deriveKey"] 
+   
     )
 }
 

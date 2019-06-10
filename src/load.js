@@ -3,6 +3,7 @@
 import * as crypto from './crypto.js'
 const { subtle } = window.crypto
 import {str2ab,ab2str,buf} from './utils.js'
+
 const profile = {}
 let loaded
 
@@ -20,7 +21,7 @@ async function ondata({data,passphrase}){
     },
     passphraseKey, buf(data.ciphertext)))
 	data = JSON.parse(cleartext)
-		
+	
 	
 	return Object.assign(profile,{
 		_original:data,

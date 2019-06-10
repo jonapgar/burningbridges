@@ -6,7 +6,7 @@ function bind(func, b,k) {
 			try {
 				
 				thing = await thing
-				console.error(k,thing)
+				console.log(k,thing)
 				thing = func(thing, ...args)
 			} catch (e) {
 				return reject(e)

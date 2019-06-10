@@ -26,18 +26,16 @@ async function generate(){
 
 	let passphraseKey = (await load()).passphraseKey
 	let keys = {
-        ...await crypto.generateSignVerify(passphraseKey),
-        ...await crypto.generateEncryptDecrypt(passphraseKey)
-    }
+		...await crypto.generateSignVerify(passphraseKey),
+		...await crypto.generateExchange()
+	}
     keys.sign = b64(keys.sign)
     keys.sign_iv = b64(keys.sign_iv)
     keys.verify = b64(keys.verify)
-    keys.encrypt = b64(keys.encrypt)
-    keys.decrypt = b64(keys.decrypt)
-    keys.decrypt_iv = b64(keys.decrypt_iv)
+	keys.publicKey = b64(keys.publicKey)
+	keys.privateKey = b64(await subtle.exportKey('pkcs8',keys.privateKey))
+
     
-    
-	
     return keys
 }
 
@@ -54,11 +52,11 @@ const $ = thing({
 
 async function send(channel,phrase){
 	let keys = await generate()
-	let {verify,encrypt} = keys
+	let {verify,publicKey} = keys
 	let handshakeKey = await crypto.getPassphraseKey(phrase,phrase)
 	let {name} = await profile()
     let hash = await $(JSON.stringify({
-    	name,channels:OBSCURITIES.map(o=>channels.generate(o)),keys:{verify,encrypt}}
+    	name,channels:OBSCURITIES.map(o=>channels.generate(o)),keys:{verify,publicKey}}
     ))
     .then(str2ab)
     .pad(BLOCK_SIZE)
@@ -89,10 +87,9 @@ async function receive (channel,phrase,lock){
 		
 		
 		channels.listen(channel,async ({hash})=>{ //receives hash
-			// if (hash===lock.hash){
-			// 	console.log(`saw reflection ${hash}, vampire mode disabled`)
-			// 	return
-			// }		
+			if (hash===lock.hash){
+				throw new Error(`Saw reflection ${hash}.`)
+			}		
 			$(hash)	
 				.download()
 				.decipher()

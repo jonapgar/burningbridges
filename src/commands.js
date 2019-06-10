@@ -3,7 +3,8 @@ import _save from './save.js'
 import contacts from './contacts.js'
 import _pair from './pair.js'
 import {send} from './core.js'
-import {buf} from './utils.js'
+import {buf,split} from './utils.js'
+
 import {askPassword, bridgeOfDeath } from './questions.js';
 const commands = {bb,help,load,generate,save,pair,python}
 export {execute,commands}
@@ -25,7 +26,7 @@ function unrecognize(command){
 }
 bb.help ='Sends a message'
 async function bb(them_msg){
-	let [them,message] = them_msg.split(/\s+/,2)
+	let [them,message] = split(them_msg,them_msg.indexOf(' '))
 	let contact = await contacts(them)
 	if (!contact)
 		throw new Error(`You don't know ${them}, try "pair"`)
@@ -62,7 +63,8 @@ async function load(){
 		}
 		fileInput.click()
 	})
-	let {profile} = await _load({data,passphrase:await askPassword()})
+	let {profile,contacts:c} = await _load({data,passphrase:await askPassword()})
+	c.forEach(c=>contacts(c.name)) //primes contacts
 	return `Hello ${profile.name}.`
 }
 generate.help = 'Generates a key file'

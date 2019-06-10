@@ -2,6 +2,7 @@ import save from './save.js'
 import load from './load.js';
 import * as conf from './conf.js'
 import {write,start as startConsole} from './console.js'
+import contacts from './contacts.js'
 import {askPassword} from './questions.js'
 import * as  io from './io.js'
 const input = document.getElementById('input')
@@ -32,9 +33,11 @@ window.onbeforeunload = e=>{
 if (LOCAL_STORAGE) {
 	let local = window.localStorage.getItem(LOCAL_STORAGE)
 	if (local) {
-		askPassword().then(passphrase=>{
-			return load({data:JSON.parse(local),passphrase})
-		}).then(({profile})=>write(`Welcome back ${profile.name}`))
+		askPassword().then(async passphrase=>{
+			let {contacts:c,profile} = await load({data:JSON.parse(local),passphrase})
+			write(`Welcome back ${profile.name}`)
+			c.forEach(c=>contacts(c.name)) //primes contacts
+		})
 	}
 }
 

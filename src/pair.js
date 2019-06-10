@@ -47,8 +47,9 @@ async function pair(code){
 	
 	let {keys:theirKeys,channels,name} = reciprocation || await waitForThem
 	
-	let {sign,sign_iv,decrypt,decrypt_iv} = ourKeys
-	contacts(name,{channels,name,keys:{...theirKeys,sign,sign_iv,decrypt,decrypt_iv}})
+	let {sign,sign_iv,privateKey} = ourKeys
+	let {verify,publicKey} = theirKeys
+	contacts(name,{channels,name,keys:{publicKey,privateKey,verify,sign,sign_iv}})
 	rmlock(stringCode)
 }
 
