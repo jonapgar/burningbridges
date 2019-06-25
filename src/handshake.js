@@ -1,7 +1,7 @@
 //handshake.js
 // import profile from './load.js'
 import {str2ab,ab2str,concat,buf,b64} from './utils.js'
-import profile from './profile.js'
+
 import load from './load.js'
 import * as crypto from './crypto.js'
 import * as channels from './channels.js'
@@ -23,20 +23,22 @@ const {subtle} = window.crypto
 export {send,receive}
 
 async function generate(){
-
-	let passphraseKey = (await load()).passphraseKey
+	let {passphraseKey} = await load()
+	
 	let keys = {
-		...await crypto.generateSignVerify(passphraseKey),
+		
+		...await crypto.exportSignVerify(passphraseKey),
 		...await crypto.generateExchange()
 	}
-    keys.sign = b64(keys.sign)
-    keys.sign_iv = b64(keys.sign_iv)
-    keys.verify = b64(keys.verify)
-	keys.publicKey = b64(keys.publicKey)
-	keys.privateKey = b64(await subtle.exportKey('pkcs8',keys.privateKey))
-
+	let encodedKeys = {
+		signKey: b64(keys.signKey),
+		signIv: b64(keys.signIv),
+		verifyKey: b64(keys.verifyKey),
+		publicKey: b64(await subtle.exportKey('spki',keys.publicKey)),
+		privateKey: b64(await subtle.exportKey('pkcs8',keys.privateKey)),
+	}
     
-    return keys
+    return encodedKeys
 }
 
 const $ = thing({ 
@@ -51,13 +53,13 @@ const $ = thing({
 })
 
 async function send(channel,phrase){
-	let keys = await generate()
-	let {verify,publicKey} = keys
+	let encodedKeys = await generate()
+	let {verifyKey,publicKey} = encodedKeys
 	let handshakeKey = await crypto.getPassphraseKey(phrase,phrase)
-	let {name} = await profile()
+	
     let hash = await $(JSON.stringify({
-    	name,channels:OBSCURITIES.map(o=>channels.generate(o)),keys:{verify,publicKey}}
-    ))
+		name:(await load()).profile.name,channels:OBSCURITIES.map(o=>channels.generate(o)),encodedKeys:{verifyKey,publicKey}
+	}))
     .then(str2ab)
     .pad(BLOCK_SIZE)
 	.chop(BLOCK_COUNT)
@@ -77,7 +79,7 @@ async function send(channel,phrase){
 	
 	
 	
-	return {keys,hash}
+	return {encodedKeys,hash}
 }
 
 async function receive (channel,phrase,lock){

@@ -1,7 +1,7 @@
 //pair.js
 import * as conf from './conf.js'
 import * as crypto from './crypto.js'
-import contacts from './contacts.js'
+import {load as loadContact,contacts} from './contacts.js'
 import {announce,silence} from './channels.js'
 import {send,receive} from './handshake.js'
 import {getNode as ipfs} from './ipfs.js'
@@ -21,17 +21,17 @@ const {
 const locks = {}
 async function pair(code){
 	let provided=!!code
-	code = code || await share() //await jerk()
+	code = code || await share()
 	let stringCode = b64(code)
 	rmlock(stringCode)
 	
 	let [channel, phrase] = parse(code)
 	let lock = locks[stringCode] = {}
 	let waitForThem = receive(channel,phrase,lock)
-	let {keys:ourKeys,hash} = await send(channel,phrase)
+	let {encodedKeys:myKeys,hash} = await send(channel,phrase)
 	lock.hash = hash
 	if (!provided) {
-		await ask(`You are listening, make sure your partner is too by issueing this command: "pair ${stringCode}", then hit enter to announce the handshake`)
+		await ask(`You are listening, make sure ymy partner is too by issueing this command: "pair ${stringCode}", then hit enter to announce the handshake`)
 		write(`announcing hash ${hash} on channel ${channel}`)
 	}
 	let reciprocation
@@ -45,12 +45,19 @@ async function pair(code){
 	
 
 	
-	let {keys:theirKeys,channels,name} = reciprocation || await waitForThem
+	let {encodedKeys:theirKeys,channels,name} = reciprocation || await waitForThem
 	
-	let {sign,sign_iv,privateKey} = ourKeys
-	let {verify,publicKey} = theirKeys
-	contacts(name,{channels,name,keys:{publicKey,privateKey,verify,sign,sign_iv}})
+	let {signKey:mySignKey,signIv:mySignIv,privateKey:myPrivateKey,publicKey:myPublicKey} = myKeys
+	let {verifyKey:theirVerifyKey,publicKey:theirPublicKey} = theirKeys
 	rmlock(stringCode)
+	
+	while (!name || contacts.some(contact=>contact.name==name)) {
+		name = await ask(`You already have a contact named ${name}. Enter a new name for the new contact:`)
+	}
+	write(`Adding contact named ${name}`)
+	
+	loadContact(name,{channels,name,encodedKeys:{theirPublicKey,myPrivateKeys:[{myPrivateKey,myPublicKey}],theirVerifyKey,mySignKey,mySignIv}})
+	return 
 }
 
 async function rmlock(key){

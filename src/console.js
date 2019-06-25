@@ -43,6 +43,7 @@ function onkeydown(e){
             input.value = ''
                 
             input.type='text'
+            
             submit(command).catch(err=>{console.error(err);return err.stack}).then(response=>{
                 if (response) 
                     write(response)
@@ -64,7 +65,10 @@ async function submit(command) {
         trap(command)
         return
     }
-    return execute(command.trim()).catch(err=>{
+
+    command = command.trim()
+
+    return execute(command).catch(err=>{
         throw err
     })	
 }

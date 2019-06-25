@@ -1,5 +1,6 @@
 //save.js
 import * as  crypto from './crypto.js'
+import {contacts} from './contacts.js'
 import {str2ab,buf,b64} from './utils.js'
 import * as conf from './conf.js'
 const {
@@ -9,10 +10,16 @@ const { subtle } = window.crypto
 import load from './load.js'
 
 export default async function save(data,passphrase){
-	data = data || (await load())._original
+    data = data || (await load())
+    data.contacts = contacts.map(contact=>{
+        let {name,channels,encodedKeys} = contact
+        return {name,channels,encodedKeys}
+    })
 	let salt = data.salt = data.salt || b64(crypto.random())
 	let passphraseKey = await crypto.getPassphraseKey(str2ab(passphrase), buf(salt))
     
+    
+
 	let iv = crypto.random()
     let encrypted = {
     	iv:b64(iv),

@@ -1,7 +1,6 @@
 //channels.js
 import * as conf from './conf.js'
 import {random} from './crypto.js'
-import {write} from './console.js'
 import {b64,b58,concat,ab2str} from './utils.js'
 import {getNode as ipfs, Buffer} from './ipfs.js'
 export  {generate,listen,silence,pad,listeners,announce}
@@ -29,7 +28,7 @@ async function listen(channels,fn,lock) {
 				console.error('ignore reflection')
 				return
 			}
-			fn({hash,channel})
+			fn({hash,channel,lock})
 		}
 		let node = await ipfs()
 		node.pubsub.subscribe(subscription,handler,{discover:true})

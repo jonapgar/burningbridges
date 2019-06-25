@@ -2,7 +2,7 @@
 import { str2ab, ab2str, concat, buf, b64 } from './utils.js'
 export {
     getPassphraseKey,
-    generateSignVerify,
+    exportSignVerify,
     generateExchange,
     getSecretKey,
     encrypt,
@@ -46,7 +46,7 @@ async function getPassphraseKey(passphrase, salt) {
 
 }
 
-async function generateSignVerify(passphraseKey) {
+async function exportSignVerify(passphraseKey) {
     let key = await subtle.generateKey({
         name: "ECDSA",
         namedCurve: "P-256", //can be "P-256", "P-384", or "P-521"
@@ -56,12 +56,12 @@ async function generateSignVerify(passphraseKey) {
     )
     let iv = random()
     return {
-        sign: await subtle.wrapKey('pkcs8', key.privateKey, passphraseKey, { //these are the wrapping key's algorithm options
+        signKey: await subtle.wrapKey('pkcs8', key.privateKey, passphraseKey, { //these are the wrapping key's algorithm options
             name: "AES-CBC",
             iv,
         }),
-        verify: await subtle.exportKey('spki', key.publicKey),
-        sign_iv: iv
+        verifyKey: await subtle.exportKey('spki', key.publicKey),
+        signIv: iv
     }
 }
 async function generateExchange() {
@@ -73,7 +73,7 @@ async function generateExchange() {
         true,
         ["deriveKey"]
     )
-    return {publicKey:await subtle.exportKey('spki', publicKey),privateKey}
+    return {publicKey,privateKey}
 }
 
 
@@ -92,13 +92,13 @@ async function verify(buffer, signature, theirPublicVerificationKey) {
     }, theirPublicVerificationKey, signature, buffer)
 }
 
-async function getSecretKey({ publicKey, privateKey }) {
+async function getSecretKey({ theirPublicKey, myPrivateKey }) {
     return subtle.deriveKey(
         {
             name: "ECDH",
-            public:publicKey
+            public:theirPublicKey
         },
-        privateKey,
+        myPrivateKey,
         {
             name: "AES-GCM",
             length: 256

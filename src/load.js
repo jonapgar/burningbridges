@@ -1,17 +1,15 @@
-//load.js
-
 import * as crypto from './crypto.js'
-const { subtle } = window.crypto
 import {str2ab,ab2str,buf} from './utils.js'
-
-const profile = {}
+import {load as loadContact,contacts} from './contacts.js'
+const { subtle } = window.crypto
 let loaded
 
-export default  ({data,passphrase}={})=>{
-	return data ? (loaded = ondata({data,passphrase})):(loaded || Promise.reject(new Error('Not logged in')))
-}
+export default load
 
-async function ondata({data,passphrase}){
+function load(data,passphrase){
+	return data ? (loaded = ondata(data,passphrase)):(loaded || Promise.reject(new Error('Not logged in')))
+}
+async function ondata(data,passphrase){
 
 	let salt = buf(data.salt)
 	let passphraseKey = await crypto.getPassphraseKey(str2ab(passphrase), salt)
@@ -21,15 +19,9 @@ async function ondata({data,passphrase}){
     },
     passphraseKey, buf(data.ciphertext)))
 	data = JSON.parse(cleartext)
-	
-	
-	return Object.assign(profile,{
-		_original:data,
-		contacts:data.contacts,
-		passphraseKey,
-	    profile:{
-	    	_original:data.profile,
-	    	...data.profile
-    	}
-	})
+	data.contacts.forEach(contact=>contact.name && loadContact(contact.name,contact))
+	return {
+		...data,
+		passphraseKey
+	}
 }
