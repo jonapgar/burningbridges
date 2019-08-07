@@ -6,21 +6,21 @@ import {announce} from './channels.js'
 import * as io from './io.js'
 import {load as loadContact,lookup as lookupContactsByChannel} from './contacts.js'
 
-import * as Garbage from './garbage.js'
-import {sign,encrypt,decrypt,getSecretKey,generateExchange,verify,importTheirPublicExchangeKey, random} from './crypto.js'
+import * as garbage from './garbage.js'
+import {sign,encrypt,decrypt,getSecretKey,generateExchange,verify,importTheirPublicExchangeKey} from './crypto.js'
 import * as cipher from './cipher.js'
-import * as transfer from './transfer.js'
+import {upload,download} from './transfer.js'
 const {subtle} = window.crypto
 import thing from './thing.js'
 
 import * as conf from './conf.js'
-import { write } from './console.js';
+
 const {
 	BLOCK_SIZE = 1024,
 	BLOCK_COUNT = 1024,
 	SIGNATURE_LENGTH=64,
 	PUBLICKEY_LENGTH=91,
-	TOKEN_LENGTH=16,
+
 } = conf
 
 
@@ -30,8 +30,8 @@ export {send,receive}
 const $ = thing({ 
 	announce,
 	...cipher,
-	...Garbage,
-	...transfer
+	...garbage,
+	upload,download
 	
 })
 
@@ -42,7 +42,7 @@ async function send({buffer,contact,obscurity=0}){
 		.pad(BLOCK_SIZE)
 		.chop(BLOCK_COUNT)
 		.log(blocks => `Split message into ${blocks.length} pieces`)
-		.then(blocks =>Promise.all(blocks.map(block => Garbage.pad(block, BLOCK_SIZE))))
+		.then(blocks =>Promise.all(blocks.map(block => garbage.pad(block, BLOCK_SIZE))))
 		.log(blocks => `Padded ${blocks.length} pieces`)	
 		.unify()
 		.log(buffer => `Unified  pieces`)
@@ -89,6 +89,9 @@ async function receive ({channel,hash},tap){
 		.download()
 		.decipher()
 		.then(async buffer=>{
+			
+			
+
 			let cleartext=null
 			let error
 			for (let contact of await lookupContactsByChannel(channel)) {
@@ -111,9 +114,9 @@ async function receive ({channel,hash},tap){
 					}
 					let {myPrivateKey} = contact.realKeys.myPrivateKeys[keyIndex]
 
-					contact.realKeys.theirPublicKey = await importTheirPublicExchangeKey(theirPublicKeyBuffer)
-					contact.realKeys.myPrivateKeys = contact.realKeys.myPrivateKeys.slice(keyindex)
-					contact.encodedKeys.myPrivateKeys = contact.encodedKeys.myPrivateKeys.slice(keyindex)
+					let theirPublicKey = contact.realKeys.theirPublicKey = await importTheirPublicExchangeKey(theirPublicKeyBuffer)
+					contact.realKeys.myPrivateKeys = contact.realKeys.myPrivateKeys.slice(keyIndex)
+					contact.encodedKeys.myPrivateKeys = contact.encodedKeys.myPrivateKeys.slice(keyIndex)
 					contact.encodedKeys.theirPublicKey = b64(theirPublicKeyBuffer)
 					return decrypt(ciphertext,
 						await getSecretKey({theirPublicKey,myPrivateKey})
@@ -128,7 +131,7 @@ async function receive ({channel,hash},tap){
 		})
 		.log(buffer => `Decrypt success!`)
 		.chop(BLOCK_COUNT)
-		.then(blocks => Promise.all(blocks.map(block => Garbage.trim(block))))
+		.then(blocks => Promise.all(blocks.map(block => garbage.trim(block))))
 		.unify()
 		.trim()
 		.tap(tap)

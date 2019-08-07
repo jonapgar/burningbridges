@@ -17,5 +17,5 @@ async function download(path) {
 	
 	if (!file)
 		throw new Error(`NO file at path ${file}`)
-	return file.content
+	return file.content.buffer
 }

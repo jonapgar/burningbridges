@@ -1,4 +1,3 @@
-import {execute} from './commands.js';
 import * as conf from './conf.js';
 export {start,write,submit,answer,secret}
 
@@ -11,7 +10,9 @@ window.onunhandledrejection = write
 let input
 let log
 let trap
-function start({input:i,log:l}){
+let execute
+function start({input:i,log:l,execute:e}){
+    execute = e
     input = i
     log = l
     input.onkeydown = onkeydown

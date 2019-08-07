@@ -1,13 +1,13 @@
 import _load from './load.js';
 import _save from './save.js'
-import {load as loadContact,unload as unloadContact} from './contacts.js'
+import {load as loadContact,unload as unloadContact,contacts as _contacts} from './contacts.js'
 import _pair from './pair.js'
 import {send} from './core.js'
 import {buf,split,str2ab} from './utils.js'
 
 import {askPassword, bridgeOfDeath } from './questions.js';
 import ask from './ask.js';
-const commands = {bb,help,load,generate,save,pair,python,broker,rename,forget}
+const commands = {bb,help,load,generate,save,pair,python,broker,rename,forget,contacts}
 export {execute,commands}
 
 async function execute(statement) {
@@ -24,6 +24,10 @@ async function execute(statement) {
 function unrecognize(command){
 	return new Error(`Unrecognized command: ${command}`)
 
+}
+contacts.help = 'List contacts'
+async function contacts(){
+	return _contacts.map(({name})=>name).join('\n')
 }
 bb.help ='Sends a message'
 async function bb(them_msg){
@@ -110,7 +114,7 @@ async function load(){
 		fileInput.click()
 	})
 	let {profile,contacts:c} = await _load(data,await askPassword())
-	c.forEach(c=>loadContact(c.name)) //primes contacts
+	// c.forEach(c=>loadContact(c.name)) //primes contacts
 	return `Hello ${profile.name}.`
 }
 

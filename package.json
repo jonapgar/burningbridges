@@ -25,5 +25,7 @@
     "shell-quote": "^1.6.1",
     "xterm": "^3.13.2"
   },
-  "devDependencies": {}
+  "devDependencies": {
+    "eslint": "^6.1.0"
+  }
 }
