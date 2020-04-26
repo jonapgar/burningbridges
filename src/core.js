@@ -1,144 +1,108 @@
-//core.js
+// core.js
 
-import {str2ab,ab2str,concat,buf,b64} from './utils.js'
+import { concat, buf, b64 } from './utils.js'
 
-import {announce} from './channels.js'
-import * as io from './io.js'
-import {load as loadContact,lookup as lookupContactsByChannel} from './contacts.js'
+import { announce } from './channels.js'
+// eslint-disable-next-line import/no-cycle
+import { load as loadContact, lookup as lookupContactsByChannel } from './contacts.js'
 
-import * as garbage from './garbage.js'
-import {sign,encrypt,decrypt,getSecretKey,generateExchange,verify,importTheirPublicExchangeKey} from './crypto.js'
-import * as cipher from './cipher.js'
-import {upload,download} from './transfer.js'
-const {subtle} = window.crypto
-import thing from './thing.js'
+import {
+  chop, unify, pad, trim,
+} from './garbage.js'
+import {
+  sign, encrypt, decrypt, getSecretKey, generateExchange, verify, importTheirPublicExchangeKey,
+} from './crypto.js'
+import { cipher, decipher } from './cipher.js'
+import { upload, download } from './transfer.js'
+
 
 import * as conf from './conf.js'
 
+const { subtle } = window.crypto
+
 const {
-	BLOCK_SIZE = 1024,
-	BLOCK_COUNT = 1024,
-	SIGNATURE_LENGTH=64,
-	PUBLICKEY_LENGTH=91,
+  BLOCK_SIZE = 1024,
+  BLOCK_COUNT = 1024,
+  SIGNATURE_LENGTH = 64,
+  PUBLICKEY_LENGTH = 91,
 
 } = conf
 
 
+export { send, receive }
 
-export {send,receive}
 
-const $ = thing({ 
-	announce,
-	...cipher,
-	...garbage,
-	upload,download
-	
-})
+async function send({ buffer, contact, obscurity = 0 }) {
+  // eslint-disable-next-line no-param-reassign
+  if (typeof contact === 'string') contact = await loadContact(contact)
+  const channel = contact.theirChannels[obscurity]
+  // eslint-disable-next-line no-param-reassign
+  buffer = unify(chop(pad(buffer, BLOCK_SIZE), BLOCK_COUNT).map(block => pad(block, BLOCK_SIZE)))
+  const { publicKey, privateKey } = await generateExchange()
+  const myPublicKeyBuffer = await subtle.exportKey('spki', publicKey)
+  const myPublicKey = b64(myPublicKeyBuffer)
+  contact.encodedKeys.myPrivateKeys.push({
+    myPrivateKey: b64(await subtle.exportKey('pkcs8', privateKey)),
+    myPublicKey, // string for comparison later
+  })
+  contact.realKeys.myPrivateKeys.push({
+    myPrivateKey: privateKey,
+    myPublicKeyBuffer,
+  })
 
-async function send({buffer,contact,obscurity=0}){
-	contact = typeof contact ==='string' ? await loadContact(contact):contact
-	let channel = contact.channels[obscurity]
-	return $(buffer)
-		.pad(BLOCK_SIZE)
-		.chop(BLOCK_COUNT)
-		.log(blocks => `Split message into ${blocks.length} pieces`)
-		.then(blocks =>Promise.all(blocks.map(block => garbage.pad(block, BLOCK_SIZE))))
-		.log(blocks => `Padded ${blocks.length} pieces`)	
-		.unify()
-		.log(buffer => `Unified  pieces`)
-		.then(async buffer=>{
-			let {publicKey,privateKey} = await generateExchange()
-			let myPublicKeyBuffer = await subtle.exportKey('spki',publicKey)
-			let myPublicKey = b64(myPublicKeyBuffer)
-			contact.encodedKeys.myPrivateKeys.push({
-				myPrivateKey:b64(await subtle.exportKey('pkcs8',privateKey)),
-				myPublicKey //string for comparison later
-			})
-			contact.realKeys.myPrivateKeys.push({
-				myPrivateKey:privateKey,
-				myPublicKeyBuffer
-			}) 
-
-			let ciphertext = await encrypt(
-				buffer,
-				await getSecretKey({theirPublicKey:contact.realKeys.theirPublicKey,myPrivateKey:privateKey})
-			)		
-			let theirPublicKeyBuffer = buf(contact.encodedKeys.theirPublicKey)
-			let data = concat(myPublicKeyBuffer,theirPublicKeyBuffer,ciphertext)
-			let signature = await sign(data,contact.realKeys.mySignKey)
-			return concat(signature,data)
-		})
-		.log(buffer => `Encrypted message`)
-		.cipher()
-		.log(buffer => `Jumbled message`)
-		.upload()
-		.announce(channel)
-		.catch(e=>{
-			throw e
-		}).promise
-
+  const ciphertext = await encrypt(
+    buffer,
+    await getSecretKey({ theirPublicKey: contact.realKeys.theirPublicKey, myPrivateKey: privateKey }),
+  )
+  const theirPublicKeyBuffer = buf(contact.encodedKeys.theirPublicKey)
+  const data = concat(myPublicKeyBuffer, theirPublicKeyBuffer, ciphertext)
+  const signature = await sign(data, contact.realKeys.mySignKey)
+  // eslint-disable-next-line no-param-reassign
+  buffer = cipher(concat(signature, data))
+  const path = upload(buffer)
+  await announce(path, channel)
 }
 
 const seen = {}
-async function receive ({channel,hash},tap){
-	if (hash in seen)
-		return
-	seen[hash]= true //todo remove
-	let verifiedContact
-	$(hash)	
-		.download()
-		.decipher()
-		.then(async buffer=>{
-			
-			
+async function receive({ channel, hash }, tap) {
+  if (hash in seen) { return }
+  seen[hash] = true // todo remove
 
-			let cleartext=null
-			let error
-			for (let contact of await lookupContactsByChannel(channel)) {
-				contact = await loadContact(contact.name)
-				try {
-					let i=0
-					let signature = buffer.slice(i,i+=SIGNATURE_LENGTH)
-					let data = buffer.slice(i)
-					await verify(signature,data,contact.realKeys.theirVerifyKey)
-					verifiedContact = contact
-					let theirPublicKeyBuffer = buffer.slice(i,i+=PUBLICKEY_LENGTH)
-					let myPublicKeyBuffer = buffer.slice(i,i+=PUBLICKEY_LENGTH)
-					let ciphertext = buffer.slice(i)
-					
-					
-					let keyIndex = contact.realKeys.myPrivateKeys.findIndex(kp=>b64(myPublicKeyBuffer)==b64(kp.myPublicKeyBuffer)) //todo compare as buffers...
-					
-					if (keyIndex===-1){
-						throw new Error(`Missing corresponding privateKey`)
-					}
-					let {myPrivateKey} = contact.realKeys.myPrivateKeys[keyIndex]
+  let buffer = decipher(download(hash))
+  let error
+  for (let contact of await lookupContactsByChannel(channel)) {
+    let decrypted
+    contact = await loadContact(contact.name)
+    try {
+      let i = 0
+      const signature = buffer.slice(i, i += SIGNATURE_LENGTH)
+      const data = buffer.slice(i)
+      await verify(signature, data, contact.realKeys.theirVerifyKey)
+      const theirPublicKeyBuffer = buffer.slice(i, i += PUBLICKEY_LENGTH)
+      const myPublicKeyBuffer = buffer.slice(i, i += PUBLICKEY_LENGTH)
+      const ciphertext = buffer.slice(i)
 
-					let theirPublicKey = contact.realKeys.theirPublicKey = await importTheirPublicExchangeKey(theirPublicKeyBuffer)
-					contact.realKeys.myPrivateKeys = contact.realKeys.myPrivateKeys.slice(keyIndex)
-					contact.encodedKeys.myPrivateKeys = contact.encodedKeys.myPrivateKeys.slice(keyIndex)
-					contact.encodedKeys.theirPublicKey = b64(theirPublicKeyBuffer)
-					return decrypt(ciphertext,
-						await getSecretKey({theirPublicKey,myPrivateKey})
-					)
-				} catch(e){
 
-					error = e
-					continue
-				}
-			}
-			throw error
-		})
-		.log(buffer => `Decrypt success!`)
-		.chop(BLOCK_COUNT)
-		.then(blocks => Promise.all(blocks.map(block => garbage.trim(block))))
-		.unify()
-		.trim()
-		.tap(tap)
-		.catch(e=>{
-			console.error(e) //todo unpin?
-		})
+      const keyIndex = contact.realKeys.myPrivateKeys.findIndex(kp => b64(myPublicKeyBuffer) === b64(kp.myPublicKeyBuffer)) // todo compare as buffers...
+
+      if (keyIndex === -1) {
+        throw new Error('Missing corresponding privateKey')
+      }
+      const { myPrivateKey } = contact.realKeys.myPrivateKeys[keyIndex]
+
+      const theirPublicKey = contact.realKeys.theirPublicKey = await importTheirPublicExchangeKey(theirPublicKeyBuffer)
+      contact.realKeys.myPrivateKeys = contact.realKeys.myPrivateKeys.slice(keyIndex)
+      contact.encodedKeys.myPrivateKeys = contact.encodedKeys.myPrivateKeys.slice(keyIndex)
+      contact.encodedKeys.theirPublicKey = b64(theirPublicKeyBuffer)
+      decrypted = await decrypt(ciphertext,
+        await getSecretKey({ theirPublicKey, myPrivateKey }))
+    } catch (e) {
+      error = e
+      continue
+    }
+    buffer = trim(unify(chop(decrypted, BLOCK_COUNT).map(trim)))
+    tap(buffer)
+    return
+  }
+  console.error(error || `No contacts for channel ${channel}`)
 }
-
-
-

@@ -1,0 +1,60 @@
+<html>
+<head>
+	<style type="text/css">
+		body {
+			background: #222;
+			color:#aaa;
+			margin:0;
+			padding:0;
+			font-family: monospace;
+			
+		}
+		#terminal {
+			display: flex;
+			height:100vh;
+			flex-direction: column;
+		}
+		#log-container {
+			flex:1 0;
+			display: flex;
+			overflow: scroll;
+		}
+		#log {
+			width:100%;
+			align-self: flex-end;
+			overflow: hidden;
+            overflow-x: auto;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+		}
+		#input {
+			flex:0 0;
+			flex-basis: 64px;
+			color:white;
+			display: block;
+			width:100%;
+			padding: 8px;	
+			border:none;
+			border-top:2px solid gray;
+			background: rgba(0,0,0,20%);
+		}
+		.message {
+			margin:8px 8px 0px 8px;
+		}
+		.message.me {
+			color:green;
+		}
+
+	</style>
+</head>
+<body>
+	<div id="terminal">
+		<div id="log-container">
+			<pre id="log"></pre>
+		</div>
+		<input id="input"/>
+		<input id="file" type="file" style="visibility:hidden;width:0;height:0;position:absolute;"/>
+		<script type="module" src="./src/main.js"></script>
+	</div>
+</body>
+</html>

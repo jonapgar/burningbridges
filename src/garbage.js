@@ -1,31 +1,29 @@
 export {
-	chop, unify,
-	pad, trim
+  chop, unify,
+  pad, trim,
 }
 
 
-function chop(buffer, block, blocks) {
+// eslint-disable-next-line no-unused-vars
+function chop(buffer, blocks) {
+  // cut buffer
+  const buffers = [buffer]
 
-	//cut buffer
-	let buffers = [buffer]
-	
-	return buffers
+  return buffers
 }
 
 function unify(buffers) {
-	//unify buffers with padding
-	let buffer = buffers[0]
-	return buffer
+  // unify buffers with padding
+  const buffer = buffers[0]
+  return buffer
 }
 
 
+// eslint-disable-next-line no-unused-vars
 function pad(buffer, length) {
-
-	return buffer
+  return buffer
 }
 
 function trim(buffer) {
-
-	return buffer
+  return buffer
 }
-
