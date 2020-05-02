@@ -12,15 +12,14 @@ wss.on('connection', socket => {
       queue[i] = resolve
     })
   }
-  const handlers = {}
+
   function handler(event) {
     // eslint-disable-next-line no-return-assign
-    return (handlers[event] = handlers[event]
-      || (async response => {
-        socket.send(
-          JSON.stringify({ event, response: (await response.data).toString('utf8') }),
-        )
-      }))
+    return async response => {
+      socket.send(
+        JSON.stringify({ event, response: (await response.data).toString('utf8') }),
+      )
+    }
   }
   async function cmd(command, args) {
     let response

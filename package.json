@@ -23,7 +23,7 @@
   },
   "homepage": "https://github.com/jonapgar/burningbridges",
   "dependencies": {
-    "ipfs-http-client": "^42.0.0",
+    "ipfs-http-client": "^44.0.0",
     "ws": "^7.2.1"
   },
   "devDependencies": {
