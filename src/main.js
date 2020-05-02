@@ -25,6 +25,7 @@ window.onbeforeunload = e => {
       save(null, askPassword())
     }, 500)
     e.preventDefault()
+    // eslint-disable-next-line no-return-assign
     return e.returnValue = 'Save your file before leaving?'
   }
 }

@@ -7,13 +7,13 @@ import {
 // eslint-disable-next-line import/no-cycle
 import load from './load.js'
 
-import { generate as generateChannel, listen } from './channels.js'
+import { generate as generateChannel, listen, silence } from './channels.js'
 
 import {
   chop, unify, pad, trim,
 } from './garbage.js'
 import { cipher, decipher } from './cipher.js'
-
+import * as crypto from './crypto.js'
 
 import { upload, download } from './transfer.js'
 
@@ -63,7 +63,7 @@ async function send(channel, phrase) {
   },
   handshakeKey,
   buffer)
-  const hash = upload(cipher(encrypted))
+  const hash = await upload(cipher(encrypted))
 
   return { encodedKeys, hash, channels: myChannels }
 }
@@ -77,7 +77,7 @@ function receive(channel, phrase, lock) {
       if (hash === lock.hash) {
         throw new Error(`Saw reflection ${hash}.`)
       }
-      const buffer = decipher(download(hash))
+      const buffer = decipher(await download(hash))
       const decrypted = await subtle.decrypt({
         name: 'AES-CBC',
         iv: phrase,
@@ -86,7 +86,7 @@ function receive(channel, phrase, lock) {
       buffer)
       const payload = JSON.parse(ab2str(trim(unify(chop(decrypted, BLOCK_COUNT).map(trim)))))
       res(payload)
-      channel.silence(lock)
+      silence(lock)
     }
   })
 }

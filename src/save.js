@@ -14,6 +14,7 @@ export default async function save(data, passphrase) {
   if (data) {
     //
   } else {
+    // eslint-disable-next-line no-param-reassign
     data = await load()
     data.contacts = contacts.map(contact => {
       const {
@@ -32,9 +33,9 @@ export default async function save(data, passphrase) {
 
   const iv = crypto.random()
   const encrypted = {
-    	iv: b64(iv),
-    	salt,
-    	ciphertext: b64(await subtle.encrypt({
+    iv: b64(iv),
+    salt,
+    ciphertext: b64(await subtle.encrypt({
       name: 'AES-CBC',
       iv,
     },

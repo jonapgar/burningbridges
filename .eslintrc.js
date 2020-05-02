@@ -13,7 +13,7 @@ module.exports = {
   extends: ["airbnb-base"],
 
   rules: {
-    "import/extensions":["error","always"],
+    "import/extensions": ["error", "always"],
     "max-len": "off",
     "no-restricted-properties": "off",
     "no-continue": "off",
@@ -47,11 +47,6 @@ module.exports = {
         props: false,
       },
     ],
-    "no-underscore-dangle": [
-      "error",
-      {
-        allowAfterThis: true,
-      },
-    ],
+    "no-underscore-dangle": "off",
   },
 };

@@ -67,7 +67,7 @@ async function rename(a_b) {
   if (existing) throw new Error(`You already know someone called ${to}. Try another name.`)
   contact.name = to
   await save()
-  return `Henceforth ${from} will be forever known as ${to}.`
+  return `Henceforth, ${from} will be forever known as ${to}.`
 }
 
 forget.help = 'Forget a user forever'

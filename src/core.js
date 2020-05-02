@@ -59,7 +59,7 @@ async function send({ buffer, contact, obscurity = 0 }) {
   const signature = await sign(data, contact.realKeys.mySignKey)
   // eslint-disable-next-line no-param-reassign
   buffer = cipher(concat(signature, data))
-  const path = upload(buffer)
+  const path = await upload(buffer)
   await announce(path, channel)
 }
 
@@ -68,7 +68,7 @@ async function receive({ channel, hash }, tap) {
   if (hash in seen) { return }
   seen[hash] = true // todo remove
 
-  let buffer = decipher(download(hash))
+  let buffer = decipher(await download(hash))
   let error
   for (let contact of await lookupContactsByChannel(channel)) {
     let decrypted

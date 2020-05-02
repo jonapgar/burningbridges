@@ -1,8 +1,6 @@
-import { getNode as ipfs } from './ipfs.js'
-
+import ipfs from './ipfs.js'
 
 export { upload, download }
-
 
 async function upload(buffer) {
   const node = await ipfs()
@@ -11,6 +9,6 @@ async function upload(buffer) {
 async function download(path) {
   const node = await ipfs()
   const file = await node.get(path)
-  if (!file) throw new Error(`NO file at path ${file}`)
-  return file.content
+  if (!file) throw new Error(`No file at path "${path}"`)
+  return file
 }

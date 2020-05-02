@@ -17,7 +17,6 @@ export {
   importTheirPublicVerificationKey,
   importTheirPublicExchangeKey,
   importMyPrivateExchangeKey,
-
 }
 
 

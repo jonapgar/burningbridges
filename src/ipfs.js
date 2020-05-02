@@ -2,16 +2,19 @@
 import * as conf from './conf.js'
 
 const {
-  PORT = 3000,
+  HOST = '127.0.0.1:3000',
 } = conf
+export { ipfs as default }
+
 let promise
-function getNode() {
+function ipfs() {
+  // eslint-disable-next-line no-return-assign
   return promise = promise || connect()
 }
 async function connect() {
   const subscriptions = []
   const queue = {}
-  const socket = new WebSocket(`ws://127.0.0.1:${PORT}`)
+  const socket = new WebSocket(`ws://${HOST}`)
   let incoming
   const connecting = new Promise(resolve => {
     socket.onopen = () => {
@@ -36,7 +39,8 @@ async function connect() {
       }
     }
   }
-  socket.onclose = function (event) {
+  socket.onclose = event => {
+    promise = null
     if (event.wasClean) {
       console.log(`[close] Connection closed cleanly, code=${event.code} reason=${event.reason}`)
     } else {
@@ -108,6 +112,7 @@ async function connect() {
           }))
           return subscriptions.splice(i, 1)[0]
         }
+        return null
       },
     },
     add(buffer) {
@@ -128,9 +133,7 @@ async function connect() {
         command: 'get',
         args: [path],
       }))
-      return wait()
+      return wait().then(blob => blob.arrayBuffer())
     },
   }
 }
-
-export { getNode }

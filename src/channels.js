@@ -4,7 +4,7 @@ import { random } from './crypto.js'
 import {
   b64, concat,
 } from './utils.js'
-import { getNode as ipfs } from './ipfs.js'
+import ipfs from './ipfs.js'
 
 
 export {
