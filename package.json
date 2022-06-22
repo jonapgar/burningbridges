@@ -22,7 +22,7 @@
   "homepage": "https://github.com/jonapgar/burningbridges",
   "dependencies": {
     "ipfs": "^0.35.0",
-    "shell-quote": "^1.6.1",
+    "shell-quote": "^1.7.3",
     "xterm": "^3.13.2"
   },
   "devDependencies": {
